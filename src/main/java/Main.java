@@ -17,18 +17,20 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.apache.commons.io.FileUtils;
 
 import static java.util.concurrent.Executors.newScheduledThreadPool;
 
 public class Main {
-    private static final int COOKIES_COUNT = 2;
+    private static boolean IS_SEND_EMAIL = false;
+    private static final int COOKIES_COUNT = 10;
     private static final AtomicInteger counter = new AtomicInteger(0);
 
     private static final String COOKIE_NAME = "Cookie";
     private static final String URL = "https://www.mzv.cz/lvov/uk/x2004_02_03/x2016_05_18/x2017_11_24_1.html";
     private static final List<String> cookies = new ArrayList<String>(COOKIES_COUNT);
 
-    private static final int THREAD_COUNT = 1;
+    private static final int THREAD_COUNT = 100;
     private static final ScheduledExecutorService executor = newScheduledThreadPool(THREAD_COUNT);
 
     private static String code = null;
@@ -106,6 +108,7 @@ public class Main {
         try {
             document = Jsoup.connect(URL)
                     .header(COOKIE_NAME, nextCookie())
+                    .timeout(60000)
                     .get();
 
         } catch (IOException e) {
@@ -115,11 +118,18 @@ public class Main {
         if (document == null) return;
 
         // TODO save document to file. Зберігати отриманий html в файли.
-
+        File f = new File("ActualCode.html");
+        try {
+            FileUtils.writeStringToFile(f, document.outerHtml(), "UTF-8");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         //System.out.println(document.toString());
 
         // TODO потрібно підправити вибірку коду.
         code = document.select("div.article_body").select("li").get(3).select("strong").first().html();
+        // актуальна вибірка
+        //code = document.select("div.article_body").select("li").last().select("strong").first().html();
 
         System.out.println("CODE is '" + code + "'");
 
@@ -132,11 +142,13 @@ public class Main {
 //                    }
 
         // відсилаємо емайл якщо знайдений код. Потрібно забезпечити гарантію що тільки 1 раз відправиться код, щоб не заспамити листами.
-        if (code != null && !code.isEmpty())
-            sendEmail(code);
+        if (code != null && !code.isEmpty() && !IS_SEND_EMAIL)
+            if (code.length()<10)
+                sendEmail(code);
     }
 
     private static void sendEmail(String code) {
+        IS_SEND_EMAIL = true;
         Properties props = new Properties();
         props.put("mail.smtp.host", "smtp.gmail.com");
         props.put("mail.smtp.socketFactory.port", "465");
@@ -156,15 +168,22 @@ public class Main {
             String contract = "contract.pdf";
             Multipart multipart = new MimeMultipart();
             MimeBodyPart messageBodyPart = new MimeBodyPart();
-            String m = "file attached. ";
+            String m = "ELVIRA FELTSAN <br/>" +
+                    "28.04.1994 <br/>" +
+                    "FG983412 <br/>" +
+                    "Мета:робоча карта <br/>" +
+                    "Контактні дані: моб.телефон: +380682491881 , email: elvirafeltsan@gmail.com";
             messageBodyPart.setText(m, "utf-8", "html");
             multipart.addBodyPart(messageBodyPart);
 
-//            MimeBodyPart attachmentBodyPart = new MimeBodyPart();
-//            attachmentBodyPart.attachFile(new File(path + "/" + passport));
-//            attachmentBodyPart.attachFile(new File(path + "/" + contract));
-//            multipart.addBodyPart(attachmentBodyPart);
+            MimeBodyPart passportBodyPart = new MimeBodyPart();
+            MimeBodyPart contractBodyPart = new MimeBodyPart();
+            passportBodyPart.attachFile(new File(Thread.currentThread().getContextClassLoader().getResource(passport).getFile()));
+            contractBodyPart.attachFile(new File(Thread.currentThread().getContextClassLoader().getResource(contract).getFile()));
+            multipart.addBodyPart(passportBodyPart);
+            multipart.addBodyPart(contractBodyPart);
             message.setFrom(new InternetAddress("elvirafeltsan@gmail.com"));
+//            message.setRecipients(Message.RecipientType.TO, InternetAddress.parse("zamkarta_lvov@mzv.cz"));
             message.setRecipients(Message.RecipientType.TO, InternetAddress.parse("ivan.feltsan@gmail.com"));
             message.setSubject(code);
             message.setContent(multipart);
@@ -176,6 +195,8 @@ public class Main {
 
 //        } catch (IOException e) {
 //            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 }
