@@ -48,7 +48,7 @@ public class Main {
                 @Override
                 public void run() {
                     // цикл до тих пір, поки код не отриманий
-                    while (code == null || code.isEmpty()) {
+                    while (code == null || code.isEmpty()|| code.length()>10) {
                         try {
                             getAndSavePage();
                         } catch (Exception ex) {
@@ -118,7 +118,7 @@ public class Main {
         if (document == null) return;
 
         // TODO save document to file. Зберігати отриманий html в файли.
-        File f = new File("ActualCode.html");
+        File f = new File("C:/html/ActualCode"+ System.currentTimeMillis() + ".html");
         try {
             FileUtils.writeStringToFile(f, document.outerHtml(), "UTF-8");
         } catch (IOException e) {
@@ -129,7 +129,7 @@ public class Main {
         // TODO потрібно підправити вибірку коду.
         code = document.select("div.article_body").select("li").get(3).select("strong").first().html();
         // актуальна вибірка
-        //code = document.select("div.article_body").select("li").last().select("strong").first().html();
+//        code = document.select("div.article_body").select("li").last().select("strong").first().html();
 
         System.out.println("CODE is '" + code + "'");
 
