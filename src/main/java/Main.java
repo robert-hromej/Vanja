@@ -1,3 +1,4 @@
+import org.apache.commons.io.FileUtils;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.select.Elements;
@@ -13,13 +14,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import org.apache.commons.io.FileUtils;
 
+import static java.lang.System.currentTimeMillis;
 import static java.util.concurrent.Executors.newScheduledThreadPool;
+import static java.util.concurrent.TimeUnit.MICROSECONDS;
 
 public class Main {
     private static boolean IS_SEND_EMAIL = false;
@@ -35,8 +36,6 @@ public class Main {
 
     private static String code = null;
 
-    // private Document documentCookie = null, documetPageOfCode = null;
-
     public static void main(String[] args) {
         // отримуємо массик кукісів
         for (int i = 0; i < COOKIES_COUNT; i++)
@@ -48,7 +47,7 @@ public class Main {
                 @Override
                 public void run() {
                     // цикл до тих пір, поки код не отриманий
-                    while (code == null || code.isEmpty()|| code.length()>10) {
+                    while (code == null || code.isEmpty() || code.length() > 10 || !IS_SEND_EMAIL) {
                         try {
                             getAndSavePage();
                         } catch (Exception ex) {
@@ -56,7 +55,7 @@ public class Main {
                         }
                     }
                 }
-            }, 100, TimeUnit.MICROSECONDS);
+            }, i * 100, MICROSECONDS);
         }
 
         executor.shutdown();
@@ -103,7 +102,7 @@ public class Main {
     }
 
     private static void getAndSavePage() {
-        Document document = null;
+        Document document;
 
         try {
             document = Jsoup.connect(URL)
@@ -113,13 +112,14 @@ public class Main {
 
         } catch (IOException e) {
             e.printStackTrace();
+            return;
         }
 
         if (document == null) return;
 
         // TODO save document to file. Зберігати отриманий html в файли.
-        File f = new File("C:/html/ActualCode"+ System.currentTimeMillis() + ".html");
         try {
+            File f = new File("C:/html/ActualCode" + currentTimeMillis() + ".html");
             FileUtils.writeStringToFile(f, document.outerHtml(), "UTF-8");
         } catch (IOException e) {
             e.printStackTrace();
@@ -129,26 +129,26 @@ public class Main {
         // TODO потрібно підправити вибірку коду.
         code = document.select("div.article_body").select("li").get(3).select("strong").first().html();
         // актуальна вибірка
-//        code = document.select("div.article_body").select("li").last().select("strong").first().html();
+        // code = document.select("div.article_body").select("li").last().select("strong").first().html();
 
         System.out.println("CODE is '" + code + "'");
 
 
-//                    Pattern p1 = Pattern.compile("(?is):\"(.+?)<");
-//                    Matcher m2 = p1.matcher(elementContainsCode.html());
-//
-//                    while (m2.find()) {
-//                        System.out.println("CODE" + m2.group(1)); // value only
-//                    }
+        //Pattern p1 = Pattern.compile("(?is):\"(.+?)<");
+        //Matcher m2 = p1.matcher(elementContainsCode.html());
+        //
+        //while (m2.find()) {
+        //    System.out.println("CODE" + m2.group(1)); // value only
+        //}
 
         // відсилаємо емайл якщо знайдений код. Потрібно забезпечити гарантію що тільки 1 раз відправиться код, щоб не заспамити листами.
-        if (code != null && !code.isEmpty() && !IS_SEND_EMAIL)
-            if (code.length()<10)
-                sendEmail(code);
+        if (code != null && !code.isEmpty() && code.length() < 10)
+            sendEmail(code);
     }
 
-    private static void sendEmail(String code) {
-        IS_SEND_EMAIL = true;
+    private static synchronized void sendEmail(String code) {
+        if (IS_SEND_EMAIL) return;
+
         Properties props = new Properties();
         props.put("mail.smtp.host", "smtp.gmail.com");
         props.put("mail.smtp.socketFactory.port", "465");
@@ -183,18 +183,19 @@ public class Main {
             multipart.addBodyPart(passportBodyPart);
             multipart.addBodyPart(contractBodyPart);
             message.setFrom(new InternetAddress("elvirafeltsan@gmail.com"));
-//            message.setRecipients(Message.RecipientType.TO, InternetAddress.parse("zamkarta_lvov@mzv.cz"));
+            // message.setRecipients(Message.RecipientType.TO, InternetAddress.parse("zamkarta_lvov@mzv.cz"));
             message.setRecipients(Message.RecipientType.TO, InternetAddress.parse("ivan.feltsan@gmail.com"));
             message.setSubject(code);
             message.setContent(multipart);
 
             Transport.send(message);
 
+            System.out.println("successful send email");
+
+            IS_SEND_EMAIL = true;
         } catch (MessagingException e) {
             throw new RuntimeException(e);
 
-//        } catch (IOException e) {
-//            e.printStackTrace();
         } catch (IOException e) {
             e.printStackTrace();
         }
