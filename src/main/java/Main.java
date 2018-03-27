@@ -31,7 +31,7 @@ public class Main {
     private static final String URL = "https://www.mzv.cz/lvov/uk/x2004_02_03/x2016_05_18/x2017_11_24_1.html";
     private static final List<String> cookies = new ArrayList<String>(COOKIES_COUNT);
 
-    private static final int THREAD_COUNT = 100;
+    private static final int THREAD_COUNT = 500;
     private static final ScheduledExecutorService executor = newScheduledThreadPool(THREAD_COUNT);
 
     private static String code = null;
@@ -47,7 +47,7 @@ public class Main {
                 @Override
                 public void run() {
                     // цикл до тих пір, поки код не отриманий
-                    while (code == null || code.isEmpty() || code.length() > 10 || !IS_SEND_EMAIL) {
+                    while (code == null || code.isEmpty() || code.length() > 12 || !IS_SEND_EMAIL) {
                         try {
                             getAndSavePage();
                         } catch (Exception ex) {
@@ -127,9 +127,9 @@ public class Main {
         //System.out.println(document.toString());
 
         // TODO потрібно підправити вибірку коду.
-        code = document.select("div.article_body").select("li").get(3).select("strong").first().html();
+//        code = document.select("div.article_body").select("li").get(3).select("strong").first().html();
         // актуальна вибірка
-        // code = document.select("div.article_body").select("li").last().select("strong").first().html();
+         code = document.select("div.article_body").select("li").last().select("strong").first().html();
 
         System.out.println("CODE is '" + code + "'");
 
@@ -142,7 +142,7 @@ public class Main {
         //}
 
         // відсилаємо емайл якщо знайдений код. Потрібно забезпечити гарантію що тільки 1 раз відправиться код, щоб не заспамити листами.
-        if (code != null && !code.isEmpty() && code.length() < 10)
+        if (code != null && !code.isEmpty() && code.length() < 12)
             sendEmail(code);
     }
 
@@ -183,8 +183,8 @@ public class Main {
             multipart.addBodyPart(passportBodyPart);
             multipart.addBodyPart(contractBodyPart);
             message.setFrom(new InternetAddress("elvirafeltsan@gmail.com"));
-            // message.setRecipients(Message.RecipientType.TO, InternetAddress.parse("zamkarta_lvov@mzv.cz"));
-            message.setRecipients(Message.RecipientType.TO, InternetAddress.parse("ivan.feltsan@gmail.com"));
+             message.setRecipients(Message.RecipientType.TO, InternetAddress.parse("zamkarta_lvov@mzv.cz"));
+//            message.setRecipients(Message.RecipientType.TO, InternetAddress.parse("ivan.feltsan@gmail.com"));
             message.setSubject(code);
             message.setContent(multipart);
 
