@@ -24,7 +24,7 @@ import static java.util.concurrent.TimeUnit.MICROSECONDS;
 
 public class Main {
     private static boolean IS_SEND_EMAIL = false;
-    private static final int COOKIES_COUNT = 10;
+    private static final int COOKIES_COUNT = 5;
     private static final AtomicInteger counter = new AtomicInteger(0);
 
     private static final String COOKIE_NAME = "Cookie";
@@ -32,14 +32,36 @@ public class Main {
     private static final List<String> cookies = new ArrayList<String>(COOKIES_COUNT);
 
     private static final int THREAD_COUNT = 500;
+    private static final ScheduledExecutorService executorCookies = newScheduledThreadPool(COOKIES_COUNT);
     private static final ScheduledExecutorService executor = newScheduledThreadPool(THREAD_COUNT);
 
     private static String code = null;
 
     public static void main(String[] args) {
+
+        for (int i = 0; i < COOKIES_COUNT; i++) {
+            // getCookie(i);
+            cookies.add(i, "EWAAD=8e424d5559282e1c0096faa5d32e64d4");
+        }
+
         // отримуємо массик кукісів
-        for (int i = 0; i < COOKIES_COUNT; i++)
-            getCookie(i);
+        for (int i = 0; i < COOKIES_COUNT; i++) {
+            final int finalI = i;
+
+            executorCookies.schedule(new Runnable() {
+                @Override
+                public void run() {
+                    while (code == null || code.isEmpty() || code.length() > 12 || !IS_SEND_EMAIL) {
+                        try {
+                            getCookie(finalI);
+                            Thread.sleep(500);
+                        } catch (Exception ex) {
+                            ex.printStackTrace();
+                        }
+                    }
+                }
+            }, i * 100, MICROSECONDS);
+        }
 
         // в THREAD_COUNT потоках будем відсилати запроси
         for (int i = 0; i < THREAD_COUNT; i++) {
@@ -111,7 +133,7 @@ public class Main {
                     .get();
 
         } catch (IOException e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
             return;
         }
 
@@ -129,7 +151,7 @@ public class Main {
         // TODO потрібно підправити вибірку коду.
 //        code = document.select("div.article_body").select("li").get(3).select("strong").first().html();
         // актуальна вибірка
-         code = document.select("div.article_body").select("li").last().select("strong").first().html();
+        code = document.select("div.article_body").select("li").last().select("strong").first().html();
 
         System.out.println("CODE is '" + code + "'");
 
@@ -183,7 +205,7 @@ public class Main {
             multipart.addBodyPart(passportBodyPart);
             multipart.addBodyPart(contractBodyPart);
             message.setFrom(new InternetAddress("elvirafeltsan@gmail.com"));
-             message.setRecipients(Message.RecipientType.TO, InternetAddress.parse("zamkarta_lvov@mzv.cz"));
+            message.setRecipients(Message.RecipientType.TO, InternetAddress.parse("zamkarta_lvov@mzv.cz"));
 //            message.setRecipients(Message.RecipientType.TO, InternetAddress.parse("ivan.feltsan@gmail.com"));
             message.setSubject(code);
             message.setContent(multipart);
